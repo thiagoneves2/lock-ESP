@@ -12,7 +12,8 @@
 #define MQTT_ID ""
 #define MQTT_BROKER "igbt.eesc.usp.br"
 #define MQTT_PORT 1883
-#define MQTT_TOPIC1 "/mqtt/sensor_porta"
+#define MQTT_TOPIC1 "/smartlock/sensor_porta"
+#define MQTT_TOPIC2 "/smartlock/desbloqueio_porta"
 #define MQTT_USERNAME "mqtt"
 #define MQTT_PASSWORD "mqtt_123_abc"
 WiFiClient espClient;
@@ -20,6 +21,8 @@ PubSubClient MQTT(espClient);
 
 char topic_str[10] = "";
 long currentTime, lastTime = 0;
+//int Rele = ;
+//int SensorPorta = ;
 
 void setupWifi();
 void setupMQTT();
@@ -28,13 +31,14 @@ void topicsSubscribe();
 void reconnectWifi();
 void reconnectMQTT();
 
-
 void setup(){
 
 Serial.begin(115200);
 setupWifi();
 setupMQTT();
 
+//pinMode(Rele, OUTPUT);
+//pinMode(SensorPorta, INPUT);
 }
 
 void loop() {
@@ -125,6 +129,7 @@ void callback(char *topic, byte * payload, unsigned int length){
 
 void topicsSubscribe(){
 	MQTT.subscribe(MQTT_TOPIC1);
+	MQTT.subscribe(MQTT_TOPIC2);
 }
 
 void reconnectWifi(){
