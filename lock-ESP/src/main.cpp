@@ -5,24 +5,26 @@
 #include <ArduinoJson.hpp>
 
 //Net Setup
-#define net_ssid "LabMicros"
-#define net_password "seluspeesc@"
+char net_ssid[] = "LabMicros";
+char net_password[] = "seluspeesc@";
 
 //MQTT Setup
-#define MQTT_ID ""
+#define MQTT_ID "12345"
 #define MQTT_BROKER "igbt.eesc.usp.br"
 #define MQTT_PORT 1883
 #define MQTT_TOPIC1 "/smartlock/sensor_porta"
 #define MQTT_TOPIC2 "/smartlock/desbloqueio_porta"
 #define MQTT_USERNAME "mqtt"
 #define MQTT_PASSWORD "mqtt_123_abc"
+#define pinSensorPorta 17
+#define pinRele 13
+#define id_porta1 
+#define id_porta2
 WiFiClient espClient;
 PubSubClient MQTT(espClient);
 
-char topic_str[10] = "";
 long currentTime, lastTime = 0;
-//int Rele = ;
-//int SensorPorta = ;
+bool statusPorta;
 
 void setupWifi();
 void setupMQTT();
@@ -33,15 +35,19 @@ void reconnectMQTT();
 
 void setup(){
 
-Serial.begin(115200);
+Serial.begin(9600);
 setupWifi();
 setupMQTT();
 
-//pinMode(Rele, OUTPUT);
-//pinMode(SensorPorta, INPUT);
+pinMode(pinRele, INPUT);
+pinMode(pinSensorPorta, INPUT);
+
 }
 
 void loop() {
+
+  JsonDocument doc;
+  char output[80];
 
   if(!MQTT.connected())
       reconnectMQTT();
@@ -53,22 +59,37 @@ void loop() {
 
   if(currentTime - lastTime > 2000)
   {
-    MQTT.publish(MQTT_TOPIC1,);
+    statusPorta = digitalRead(pinSensorPorta);
+    if (statusPorta == HIGH)
+    {
+      doc["statusporta"] = "Aberta";
+    }
+    else 
+    {
+      doc["statusporta"] = "Fechada";
+    }
+    serializeJson(doc,output);
+    //char output[] = "Enviado via MQTT";
+    MQTT.publish(MQTT_TOPIC1,output);
     lastTime = millis();
   }
 
+  //Serial.println("ESP em funcionamento");
+  MQTT.loop();
+  delay(500);
 
 }
 
 void setupWifi() {
   //Configura conexão à rede WiFi
-  if(WiFi.status() == WL_CONNECTED) 
-    return;
-  Serial.println();
   Serial.print("Conectando a ");
   Serial.println(net_ssid);
+  if(WiFi.status() == WL_CONNECTED) 
+      return;
 
   WiFi.begin(net_ssid,net_password);
+  Serial.print("Conectando a ");
+  Serial.println(net_ssid);
 
   while (WiFi.status() != WL_CONNECTED)
   {
@@ -76,7 +97,7 @@ void setupWifi() {
     Serial.println(".");
   }
 
-  Serial.println("");
+  Serial.println(" ");
   Serial.println("WiFi conectado");
   Serial.println("Endereço IP: ");
   Serial.println(WiFi.localIP());
@@ -107,29 +128,61 @@ void  setupMQTT() {
 }
 
 void callback(char *topic, byte * payload, unsigned int length){
-  Serial.print("Mensagem recebida no topico: ");
+  /*Serial.print("Mensagem recebida no topico: ");
   Serial.println(topic);
   Serial.print("Mensagem: ");
   for(unsigned int i = 0; i < length; i++)
   {
     Serial.print((char) payload[i]);
   }
-  Serial.println();
+  Serial.println(" ");
   Serial.print("-----------------------");
-  Serial.println();
+  Serial.println(" ");*/
 
-  if(String(topic) == MQTT_TOPIC1)
+  JsonDocument doc1;
+  char input[80];
+  char comando[15];
+  int id_porta;
+  int id_esp;
+
+
+  if(String(topic) == MQTT_TOPIC2)
   {
-	  Serial.print("Tópico recebido: ");
-    Serial.print(MQTT_TOPIC1);
-    Serial.println();
-  }
-
+    deserializeJson(doc1,payload);
+    id_porta = doc1["id"]; 
+    id_esp = doc1["id_esp"];
+    if(id_porta == 123 && id_esp == 456)
+    {
+      //if(doc1["comando"] == "Abrir")
+      //{
+        pinMode(pinRele,OUTPUT);
+        digitalWrite(pinRele,HIGH);
+	      Serial.print("Porta ");
+        Serial.print(id_porta);
+        Serial.println(" desbloqueada");
+     }
+      //if(doc1["comando"] == "Fechar")
+      else
+      {
+        pinMode(pinRele,INPUT);
+	      Serial.print("Porta ");
+        Serial.print(id_porta);
+        Serial.println(" bloqueada");
+      }
+   }
 }
 
 void topicsSubscribe(){
-	MQTT.subscribe(MQTT_TOPIC1);
-	MQTT.subscribe(MQTT_TOPIC2);
+  if(MQTT.subscribe(MQTT_TOPIC1))
+  {
+    Serial.print("Inscrição bem sucedida no tópico: ");
+    Serial.println(MQTT_TOPIC1);
+  }
+  if(MQTT.subscribe(MQTT_TOPIC2))
+  {
+    Serial.print("Inscrição bem sucedida no tópico: ");
+    Serial.println(MQTT_TOPIC2);
+  }
 }
 
 void reconnectWifi(){
@@ -161,4 +214,5 @@ void reconnectMQTT(){
       Serial.println("Nova tentativa em 2s");
       delay(2000);
     }
+  }
 }
